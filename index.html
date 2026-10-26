@@ -1,0 +1,885 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#102033">
+  <meta name="description" content="UNITRADE объединяет сервисную агрегацию, эвакуацию и аналитику затрат корпоративных автопарков с NEO FLEET.">
+  <title>UNI FLEET — сервис и данные для автопарков</title>
+  <link rel="stylesheet" href="assets/leaflet/leaflet.css">
+  <style>
+    :root {
+      --ink: #102033;
+      --ink-2: #20354a;
+      --blue: #3567f6;
+      --blue-2: #6d8cff;
+      --lime: #b7e64a;
+      --mint: #52d7c1;
+      --mist: #f3f6f7;
+      --line: #dfe6e9;
+      --slate: #647486;
+      --white: #fff;
+      --radius: 24px;
+      --max: 1240px;
+    }
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; scroll-padding-top: 96px; }
+    body {
+      margin: 0;
+      color: var(--ink);
+      background: #fff;
+      font-family: Inter, "Segoe UI", Arial, sans-serif;
+      font-size: 16px;
+      line-height: 1.55;
+      -webkit-font-smoothing: antialiased;
+    }
+    a { color: inherit; text-decoration: none; }
+    button { font: inherit; }
+    .wrap { width: min(var(--max), calc(100% - 64px)); margin-inline: auto; }
+    .topbar {
+      height: 82px;
+      display: flex;
+      align-items: center;
+      position: sticky;
+      top: 0;
+      z-index: 1000;
+      background: rgba(255,255,255,.92);
+      backdrop-filter: blur(16px);
+      border-bottom: 1px solid rgba(16,32,51,.07);
+    }
+    .nav-row { display: flex; align-items: center; justify-content: space-between; gap: 28px; }
+    .brand { display: inline-flex; align-items: center; gap: 11px; flex-shrink: 0; }
+    .brand-mark { width: 39px; height: 39px; }
+    .brand-name { font-size: 19px; line-height: 1; font-weight: 760; letter-spacing: .055em; }
+    .brand-name span { color: var(--blue); }
+    .nav-links { display: flex; align-items: center; gap: clamp(20px, 3vw, 44px); color: #536273; font-size: 13px; font-weight: 600; }
+    .nav-links a { transition: color .2s ease; }
+    .nav-links a:hover { color: var(--blue); }
+    .nav-cta, .button {
+      border: 0;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 12px;
+      min-height: 48px;
+      padding: 0 20px;
+      border-radius: 999px;
+      background: var(--blue);
+      color: #fff;
+      font-size: 13px;
+      font-weight: 700;
+      letter-spacing: .01em;
+      box-shadow: 0 10px 26px rgba(53,103,246,.19);
+      transition: transform .2s ease, background .2s ease, box-shadow .2s ease;
+      cursor: pointer;
+    }
+    .nav-cta:hover, .button:hover { background: #2454e4; transform: translateY(-2px); box-shadow: 0 14px 30px rgba(53,103,246,.25); }
+    .button-arrow { width: 17px; height: 17px; }
+    .menu-toggle { display: none; border: 1px solid var(--line); border-radius: 50%; width: 44px; height: 44px; background: white; color: var(--ink); align-items: center; justify-content: center; cursor: pointer; }
+
+    .hero { padding: 58px 0 60px; overflow: hidden; }
+    .hero-grid { display: grid; grid-template-columns: 1.02fr .98fr; gap: clamp(38px, 6vw, 78px); align-items: center; }
+    .eyebrow { display: flex; align-items: center; gap: 10px; margin-bottom: 22px; color: var(--accent-text, var(--blue)); font-size: 10px; font-weight: 800; letter-spacing: .17em; text-transform: uppercase; }
+    .eyebrow::before { content: ""; display: block; width: 23px; height: 2px; background: var(--accent, var(--lime)); }
+    .accent-blue { --accent: var(--blue); --accent-text: var(--blue); --accent-soft: #e9efff; }
+    .accent-teal { --accent: var(--mint); --accent-text: #138a7a; --accent-soft: #e2f7f3; }
+    .accent-lime { --accent: var(--lime); --accent-text: #5f7d12; --accent-soft: rgba(183,230,74,.14); }
+    h1, h2, h3, p { margin-top: 0; }
+    h1 { max-width: 650px; margin-bottom: 22px; font-size: clamp(48px, 5.8vw, 78px); line-height: .99; letter-spacing: -.065em; font-weight: 690; }
+    h1 .blue { color: var(--blue); }
+    .hero-copy { max-width: 530px; color: #536273; font-size: 17px; line-height: 1.7; }
+    .hero-copy strong { color: var(--ink); font-weight: 650; }
+    .hero-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 20px; margin-top: 30px; }
+    .text-link { display: inline-flex; align-items: center; gap: 9px; color: var(--ink); font-size: 13px; font-weight: 700; }
+    .text-link svg { width: 17px; height: 17px; color: var(--blue); transition: transform .2s ease; }
+    .text-link:hover svg { transform: translateX(4px); }
+    .hero-visual {
+      min-height: 480px;
+      position: relative;
+      isolation: isolate;
+      overflow: hidden;
+      border-radius: 30px;
+      background: #091828 url("assets/network-routes.jpg") 58% center / cover no-repeat;
+      box-shadow: 0 28px 80px rgba(16,32,51,.19);
+    }
+    .hero-visual::before { content: ""; position: absolute; z-index: -1; inset: 0; background: linear-gradient(90deg, rgba(8,22,38,.64), rgba(8,22,38,.04) 80%), linear-gradient(0deg, rgba(8,22,38,.5), transparent 55%); }
+    .visual-label { position: absolute; top: 26px; left: 27px; display: inline-flex; align-items: center; gap: 9px; color: rgba(255,255,255,.86); font-size: 9px; font-weight: 750; letter-spacing: .15em; }
+    .visual-label .live { width: 7px; height: 7px; border-radius: 50%; background: var(--lime); box-shadow: 0 0 13px var(--lime); }
+    .visual-coordinate { position: absolute; top: 25px; right: 27px; color: rgba(255,255,255,.45); font-size: 9px; letter-spacing: .12em; }
+    .visual-caption { position: absolute; left: 28px; bottom: 29px; color: rgba(255,255,255,.65); font-size: 10px; letter-spacing: .12em; text-transform: uppercase; }
+    .visual-card {
+      position: absolute;
+      right: 23px;
+      bottom: 68px;
+      width: min(270px, 72%);
+      padding: 18px 19px 16px;
+      border: 1px solid rgba(255,255,255,.45);
+      border-radius: 17px;
+      background: rgba(255,255,255,.93);
+      box-shadow: 0 20px 50px rgba(0,0,0,.22);
+      backdrop-filter: blur(12px);
+    }
+    .visual-card-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 17px; }
+    .neo-lockup { display: flex; align-items: center; gap: 9px; }
+    .neo-mark { width: 30px; height: 30px; }
+    .neo-title { font-size: 12px; font-weight: 800; letter-spacing: .07em; line-height: 1.1; }
+    .neo-sub { display: block; margin-top: 4px; color: #708092; font-size: 8px; font-weight: 650; letter-spacing: .1em; }
+    .ai-tag { padding: 5px 8px; border-radius: 999px; background: #eff3ff; color: var(--blue); font-size: 8px; font-weight: 800; letter-spacing: .1em; }
+    .micro-row { display: grid; grid-template-columns: 1fr 75px; align-items: center; gap: 12px; margin-top: 10px; color: #657488; font-size: 9px; }
+    .micro-line { height: 5px; overflow: hidden; border-radius: 9px; background: #e8edf0; }
+    .micro-line i { display: block; height: 100%; border-radius: inherit; background: var(--blue); }
+    .micro-row:nth-of-type(3) .micro-line i { background: var(--mint); }
+    .micro-row:nth-of-type(4) .micro-line i { background: var(--lime); }
+
+    /* Навигация по направлениям */
+    .service-nav { background: var(--ink); color: #fff; }
+    .service-nav-grid { display: grid; grid-template-columns: repeat(3, 1fr); }
+    .svc-tab { position: relative; display: grid; grid-template-columns: auto 1fr auto; align-items: start; gap: 16px; padding: 30px 28px; border-left: 1px solid rgba(255,255,255,.09); transition: background .2s ease; }
+    .svc-tab:first-child { padding-left: 0; border-left: 0; }
+    .svc-tab:last-child { padding-right: 0; }
+    .svc-tab:last-child::after { right: 0; }
+    .svc-tab-arrow { margin-top: 11px; }
+    .svc-tab::after { content: ""; position: absolute; left: 28px; right: 28px; bottom: 0; height: 3px; border-radius: 3px 3px 0 0; background: var(--accent); transform: scaleX(0); transform-origin: left; transition: transform .3s ease; }
+    .svc-tab:first-child::after { left: 0; }
+    .svc-tab:hover::after, .svc-tab:focus-visible::after { transform: scaleX(1); }
+    .svc-tab-no { width: 40px; height: 40px; display: grid; place-items: center; border-radius: 12px; color: var(--accent); background: rgba(255,255,255,.06); font-size: 11px; font-weight: 800; letter-spacing: .06em; }
+    .svc-tab b { display: block; font-size: 17px; font-weight: 680; letter-spacing: -.02em; }
+    .svc-tab small { display: block; max-width: 310px; margin-top: 5px; color: rgba(255,255,255,.68); font-size: 13px; line-height: 1.45; }
+    .svc-tab-arrow { width: 18px; height: 18px; color: rgba(255,255,255,.35); transition: transform .2s ease, color .2s ease; }
+    .svc-tab:hover .svc-tab-arrow { color: var(--accent); transform: translateY(3px); }
+    .section-mist { background: var(--mist); }
+    .nav-links a.is-active { color: var(--ink); }
+
+    .section { padding: 116px 0; }
+    .section-top { display: flex; align-items: end; justify-content: space-between; gap: 48px; margin-bottom: 48px; }
+    .section-top .eyebrow { margin-bottom: 17px; }
+    h2 { max-width: 760px; margin-bottom: 0; font-size: clamp(38px, 4.6vw, 60px); line-height: 1.03; letter-spacing: -.057em; font-weight: 680; }
+    .section-intro { max-width: 390px; margin-bottom: 4px; color: var(--slate); font-size: 14px; line-height: 1.75; }
+    .coverage-stats { display: flex; flex: 0 0 auto; align-items: flex-end; gap: clamp(32px, 4vw, 56px); margin-bottom: 4px; }
+    .coverage-count { text-align: left; }
+    .coverage-count strong { display: block; color: var(--blue); font-size: clamp(52px, 5.6vw, 76px); line-height: .88; font-weight: 680; letter-spacing: -.055em; }
+    .coverage-count span { display: block; margin-top: 10px; color: var(--slate); font-size: 12px; font-weight: 600; }
+    .coverage-map-frame { position: relative; z-index: 0; isolation: isolate; overflow: hidden; border-radius: 22px; background: #0a1a29; }
+    #coverage-map-root { width: 100%; height: 540px; background: #0a1a29; }
+    #coverage-map-root:focus-visible { outline: 3px solid #83a0ff; outline-offset: -3px; }
+    .leaflet-container { font-family: Inter, "Segoe UI", Arial, sans-serif; background: #0a1a29; }
+    .leaflet-bar { border: 0; box-shadow: 0 8px 20px rgba(0,0,0,.4); }
+    .leaflet-bar a, .leaflet-bar a:hover {
+      width: 34px; height: 34px; line-height: 33px;
+      border-bottom: 1px solid rgba(255,255,255,.09);
+      color: #dbe4ef; background: rgba(13,29,45,.94);
+    }
+    .leaflet-bar a:hover { color: #fff; background: #1b3a56; }
+    .map-fallback { display: none; padding: 40px 28px; color: rgba(255,255,255,.7); text-align: center; font-size: 13px; }
+    .coverage-map-frame.is-fallback #coverage-map-root { display: none; }
+    .coverage-map-frame.is-fallback .map-fallback { display: block; }
+    .coverage-map-frame.is-fallback .map-caption { display: none; }
+    .map-caption { position: absolute; z-index: 600; top: 16px; left: 18px; padding: 7px 10px; border: 1px solid rgba(255,255,255,.13); border-radius: 999px; color: #fff; background: rgba(16,32,51,.88); font-size: 8px; font-weight: 750; letter-spacing: .12em; pointer-events: none; }
+    .city-dot { fill: var(--lime); fill-opacity: .92; stroke: #0a1a29; stroke-width: 1.3; transition: fill .15s ease; }
+    .city-dot:hover { fill: #fff; }
+    .leaflet-tooltip.city-tooltip {
+      padding: 7px 10px; border: 1px solid rgba(255,255,255,.12); border-radius: 9px;
+      color: #fff; background: rgba(13,29,45,.96); box-shadow: 0 8px 22px rgba(0,0,0,.4);
+      font: 700 12px/1.25 Inter, "Segoe UI", Arial, sans-serif; white-space: nowrap;
+    }
+    .city-tooltip small { display: block; margin-top: 3px; color: rgba(255,255,255,.58); font-size: 10px; font-weight: 500; }
+    .leaflet-tooltip-top.city-tooltip::before { border-top-color: rgba(13,29,45,.96); }
+    .leaflet-tooltip-bottom.city-tooltip::before { border-bottom-color: rgba(13,29,45,.96); }
+    .city-label {
+      padding: 0; border: 0; background: transparent; box-shadow: none;
+      color: #fff; font: 700 11px/1 Inter, "Segoe UI", Arial, sans-serif;
+      text-shadow: 0 0 4px #0a1a29, 0 0 9px #0a1a29, 0 1px 2px #0a1a29; white-space: nowrap;
+    }
+    .leaflet-tooltip.city-label::before { display: none; }
+    .coverage-filters { display: flex; flex-wrap: wrap; gap: 7px; margin-top: 16px; }
+    .filter-chip {
+      padding: 8px 14px; border: 1px solid #d5dee2; border-radius: 999px;
+      color: #5c6b7a; background: #fff; font-size: 11px; font-weight: 650;
+      cursor: pointer; transition: color .18s ease, background .18s ease, border-color .18s ease;
+    }
+    .filter-chip:hover { color: var(--ink); border-color: #b6c3cb; }
+    .filter-chip[aria-pressed="true"] { color: #fff; background: var(--ink); border-color: var(--ink); }
+    .filter-chip b { font-weight: 750; opacity: .55; }
+
+    .neo-section { position: relative; overflow: hidden; padding: 112px 0 120px; color: #fff; background: var(--ink); }
+    .neo-section::before { content: ""; position: absolute; width: 680px; height: 680px; right: -220px; top: -260px; border-radius: 50%; border: 1px solid rgba(109,140,255,.16); box-shadow: 0 0 0 75px rgba(109,140,255,.035), 0 0 0 150px rgba(109,140,255,.025); }
+    .neo-grid { display: grid; grid-template-columns: .83fr 1.17fr; align-items: center; gap: clamp(48px, 8vw, 110px); position: relative; }
+    .neo-section .eyebrow { color: var(--lime); }
+    .neo-section h2 { margin-bottom: 22px; }
+    .neo-copy > p:not(.eyebrow) { max-width: 450px; margin-bottom: 28px; color: rgba(255,255,255,.65); font-size: 15px; line-height: 1.75; }
+    .neo-lockup-large { display: flex; align-items: center; gap: 13px; margin-bottom: 35px; }
+    .neo-lockup-large .neo-mark { width: 48px; height: 48px; }
+    .neo-lockup-large strong { display: block; font-size: 16px; letter-spacing: .12em; }
+    .neo-lockup-large small { display: block; margin-top: 4px; color: rgba(255,255,255,.52); font-size: 9px; letter-spacing: .15em; text-transform: uppercase; }
+    .neo-section .text-link { color: #fff; }
+    .dashboard {
+      padding: 12px;
+      border: 1px solid rgba(255,255,255,.14);
+      border-radius: 23px;
+      background: rgba(255,255,255,.055);
+      box-shadow: 0 35px 100px rgba(0,0,0,.3);
+      transform: rotateY(-5deg) rotateX(2deg);
+    }
+    .dash-window { display: grid; grid-template-columns: 150px 1fr; min-height: 365px; overflow: hidden; border-radius: 15px; background: #f7f9fa; color: var(--ink); }
+    .dash-side { padding: 22px 16px; color: rgba(255,255,255,.8); background: #142a40; }
+    .dash-brand { display: flex; align-items: center; gap: 8px; margin-bottom: 31px; color: #fff; font-size: 10px; font-weight: 800; letter-spacing: .07em; }
+    .dash-brand svg { width: 23px; height: 23px; }
+    .dash-nav { display: grid; gap: 6px; }
+    .dash-nav span { padding: 9px 8px; border-radius: 7px; color: rgba(255,255,255,.5); font-size: 9px; }
+    .dash-nav span.active { color: #fff; background: rgba(109,140,255,.2); }
+    .dash-main { padding: 24px 25px; }
+    .dash-top { display: flex; justify-content: space-between; gap: 12px; align-items: center; margin-bottom: 25px; }
+    .dash-top strong { font-size: 14px; letter-spacing: -.02em; }
+    .dash-period { padding: 7px 9px; border: 1px solid #e2e7ea; border-radius: 7px; color: #718093; font-size: 8px; }
+    .dash-kpis { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 14px; }
+    .dash-kpi { padding: 13px 14px; border: 1px solid #e8edef; border-radius: 10px; background: #fff; }
+    .dash-kpi small { display: block; color: #7b8997; font-size: 8px; }
+    .dash-kpi b { display: block; margin-top: 6px; font-size: 17px; letter-spacing: -.04em; }
+    .dash-kpi em { color: #198d7c; font-size: 8px; font-style: normal; font-weight: 700; }
+    .dash-chart { min-height: 135px; padding: 13px 14px; border: 1px solid #e8edef; border-radius: 10px; background: #fff; }
+    .dash-chart-title { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; font-size: 9px; font-weight: 750; }
+    .dash-chart-title span { color: #8a97a3; font-size: 8px; font-weight: 500; }
+    .bar-chart { height: 68px; display: flex; align-items: end; gap: 8px; padding: 0 5px; border-bottom: 1px solid #e9edef; background: repeating-linear-gradient(to bottom, transparent 0 21px, #eff2f3 22px 23px); }
+    .bar-chart i { flex: 1; min-width: 7px; border-radius: 4px 4px 0 0; background: #c9d5ff; }
+    .bar-chart i:nth-child(3n+1) { background: var(--blue); }
+    .bar-chart i:nth-child(4n) { background: var(--mint); }
+    .chart-labels { display: flex; justify-content: space-between; margin-top: 7px; color: #a0aab3; font-size: 7px; }
+    .dash-note { margin-top: 10px; color: rgba(255,255,255,.55); text-align: right; font-size: 9px; }
+
+    .process { background: var(--mist); }
+    .process-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0; border-top: 1px solid #dce4e7; }
+    .process-step { position: relative; min-height: 210px; padding: 29px 29px 0 0; }
+    .process-step + .process-step { padding-left: 29px; border-left: 1px solid #dce4e7; }
+    .process-no { display: inline-grid; place-items: center; width: 31px; height: 31px; margin-bottom: 26px; border: 1px solid #cad5da; border-radius: 50%; color: var(--blue); font-size: 9px; font-weight: 750; }
+    .process-step h3 { max-width: 260px; margin-bottom: 9px; font-size: 19px; line-height: 1.2; letter-spacing: -.035em; }
+    .process-step p { max-width: 290px; color: #708092; font-size: 12px; line-height: 1.7; }
+
+    /* 02 — Агрегатор сервисов */
+    .svc-lead { max-width: 450px; margin-bottom: 4px; color: var(--ink); font-size: 21px; font-weight: 620; line-height: 1.4; letter-spacing: -.02em; }
+    .agg-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; }
+    .agg-item { min-height: 214px; display: flex; flex-direction: column; justify-content: space-between; gap: 34px; padding: 26px 27px 28px; border-radius: 20px; background: #fff; box-shadow: 0 1px 2px rgba(16,32,51,.04); }
+    .agg-top { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; }
+    .agg-no { color: #94a2af; font-size: 10px; font-weight: 750; letter-spacing: .12em; }
+    .agg-icon { width: 46px; height: 46px; display: grid; place-items: center; flex-shrink: 0; border-radius: 14px; color: var(--blue); background: #e9efff; }
+    .agg-icon svg { width: 23px; height: 23px; }
+    .agg-item h3 { max-width: 310px; margin: 0; font-size: 21px; line-height: 1.22; letter-spacing: -.035em; font-weight: 660; }
+    .agg-support { grid-column: span 2; color: #fff; background: var(--ink); }
+    .agg-support .agg-no { color: rgba(255,255,255,.42); }
+    .agg-support .agg-icon { color: var(--lime); background: rgba(183,230,74,.12); }
+    .support-row { display: flex; align-items: flex-end; justify-content: space-between; gap: 20px; }
+    .agg-support h3 { color: #fff; }
+    .support-big { color: var(--lime); font-size: clamp(64px, 7.4vw, 100px); line-height: .82; font-weight: 700; letter-spacing: -.06em; }
+
+    /* Платформа: скриншоты интерфейса */
+    .platform { margin-top: 72px; }
+    .platform-head { display: flex; align-items: flex-end; justify-content: space-between; gap: 40px; margin-bottom: 30px; }
+    .platform-kicker { margin-bottom: 12px; color: var(--blue); font-size: 10px; font-weight: 800; letter-spacing: .17em; text-transform: uppercase; }
+    .platform-head h3 { margin: 0; font-size: clamp(26px, 3vw, 38px); line-height: 1.08; letter-spacing: -.045em; font-weight: 680; }
+    .platform-head p { max-width: 430px; margin: 0 0 4px; color: var(--slate); font-size: 14px; line-height: 1.7; }
+    .platform-stage { position: relative; padding: 0 15% 84px 0; }
+    .shot { margin: 0; overflow: hidden; border: 1px solid #dde3e8; border-radius: 16px; background: #fff; box-shadow: 0 30px 70px rgba(16,32,51,.12); }
+    .shot a { display: block; cursor: zoom-in; }
+    .shot img { display: block; width: 100%; height: auto; }
+    .shot-bar { display: flex; align-items: center; gap: 6px; height: 34px; padding: 0 14px; border-bottom: 1px solid #e6eaee; background: #f7f9fa; }
+    .shot-bar i { width: 9px; height: 9px; border-radius: 50%; background: #d6dde3; }
+    .shot-bar span { margin-left: 10px; color: #8a97a3; font-size: 11px; font-weight: 600; }
+    .shot-order { position: absolute; right: 0; bottom: 0; width: 34%; border-radius: 14px; box-shadow: 0 36px 80px rgba(16,32,51,.26); }
+    .platform-note { margin: 18px 0 0; color: #8a97a3; font-size: 11px; }
+
+    /* 03 — Эвакуация */
+    .evac-panel { min-height: 530px; position: relative; isolation: isolate; display: flex; align-items: flex-start; overflow: hidden; padding: 48px 48px 140px; border-radius: 25px; color: #fff; background: #122a40 url("assets/evacuation-moscow.jpg") center 50% / cover no-repeat; }
+    .evac-panel::before { content: ""; position: absolute; z-index: -1; inset: 0; background: linear-gradient(90deg, rgba(9,25,43,.9), rgba(9,25,43,.55) 40%, rgba(9,25,43,0) 72%), linear-gradient(0deg, rgba(9,25,43,.6), transparent 42%); }
+    .evac-copy { max-width: 470px; }
+    .evac-copy .eyebrow { color: var(--mint); }
+    .evac-copy h2 { margin-bottom: 16px; }
+    .evac-copy p { max-width: 350px; margin: 0; color: rgba(255,255,255,.76); font-size: 14px; line-height: 1.7; }
+    .evac-points { position: relative; z-index: 1; display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; margin: -98px 28px 0; }
+    .evac-point { min-height: 180px; display: flex; flex-direction: column; gap: 22px; padding: 24px 25px 26px; border-radius: 20px; background: #fff; box-shadow: 0 22px 50px rgba(16,32,51,.14); }
+    .evac-top { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; }
+    .evac-icon { width: 44px; height: 44px; display: grid; place-items: center; flex-shrink: 0; border-radius: 14px; color: #1b9f8e; background: #e6f8f5; }
+    .evac-icon svg { width: 23px; height: 23px; }
+    .evac-point h3 { margin: auto 0 0; font-size: 20px; line-height: 1.22; letter-spacing: -.035em; font-weight: 660; }
+    .evac-arrow { display: inline-block; width: 18px; height: 18px; margin-left: 3px; vertical-align: -2px; color: var(--blue); transition: transform .2s ease; }
+    a.evac-point { transition: transform .25s ease, box-shadow .25s ease; }
+    a.evac-point:hover { transform: translateY(-4px); box-shadow: 0 28px 56px rgba(16,32,51,.18); }
+    a.evac-point:hover .evac-arrow { transform: translateX(3px); }
+
+    /* Эвакуация: заявка из мессенджера */
+    .evac-msg { display: grid; grid-template-columns: 1.1fr .9fr; align-items: center; gap: 40px; margin-top: 14px; padding: 42px 46px; border-radius: 22px; background: var(--mist); }
+    .msg-kicker { margin-bottom: 12px; color: #138a7a; font-size: 10px; font-weight: 800; letter-spacing: .17em; text-transform: uppercase; }
+    .evac-msg h3 { max-width: 520px; margin: 0 0 14px; font-size: clamp(24px, 2.6vw, 34px); line-height: 1.1; letter-spacing: -.045em; font-weight: 680; }
+    .evac-msg p { max-width: 460px; margin: 0 0 24px; color: var(--slate); font-size: 14px; line-height: 1.7; }
+    .msg-chips { display: flex; flex-wrap: wrap; gap: 8px; }
+    .msg-chip { display: inline-flex; align-items: center; gap: 8px; padding: 9px 15px; border: 1px solid #cfe6e1; border-radius: 999px; background: #fff; font-size: 13px; font-weight: 650; }
+    .msg-chip svg { width: 16px; height: 16px; color: #1b9f8e; }
+    .chat { width: 100%; max-width: 350px; justify-self: end; padding: 16px; border-radius: 22px; background: var(--ink); box-shadow: 0 24px 60px rgba(16,32,51,.22); }
+    .chat-head { display: flex; align-items: center; gap: 10px; padding: 2px 4px 14px; border-bottom: 1px solid rgba(255,255,255,.08); color: #fff; }
+    .chat-ava { width: 34px; height: 34px; display: grid; place-items: center; flex: none; border-radius: 50%; color: var(--mint); background: rgba(82,215,193,.16); }
+    .chat-ava svg { width: 18px; height: 18px; }
+    .chat-head b { display: block; font-size: 13px; }
+    .chat-head small { display: block; margin-top: 1px; color: rgba(255,255,255,.5); font-size: 10.5px; }
+    .chat-body { display: grid; gap: 8px; padding-top: 14px; }
+    .bubble { max-width: 84%; padding: 9px 12px; border-radius: 14px; font-size: 12.5px; line-height: 1.4; }
+    .bubble.me { justify-self: end; border-bottom-right-radius: 4px; color: var(--ink); background: var(--mint); font-weight: 560; }
+    .bubble.bot { justify-self: start; border-bottom-left-radius: 4px; color: #fff; background: rgba(255,255,255,.08); }
+    .bubble svg { width: 13px; height: 13px; vertical-align: -2px; margin-right: 5px; }
+    .bubble.done svg { color: var(--lime); }
+
+    /* 04 — Интеллект затрат */
+    .neo-points { max-width: 480px; margin: 0 0 30px; padding: 0; list-style: none; }
+    .neo-points li { display: grid; grid-template-columns: 36px 1fr; align-items: baseline; gap: 10px; padding: 15px 0; border-top: 1px solid rgba(255,255,255,.12); color: #fff; font-size: 16px; font-weight: 560; line-height: 1.4; letter-spacing: -.01em; }
+    .neo-points li:last-child { border-bottom: 1px solid rgba(255,255,255,.12); }
+    .neo-points span { color: var(--lime); font-size: 10px; font-weight: 750; letter-spacing: .12em; }
+    .bar-chart i.anomaly { position: relative; background: #ff8a4c; }
+    .bar-chart i.anomaly::after { content: "аномалия"; position: absolute; left: 50%; top: -14px; transform: translateX(-50%); color: #e0682b; font-size: 7px; font-weight: 750; font-style: normal; white-space: nowrap; }
+
+    /* География */
+    .coverage-section .section-top { margin-bottom: 32px; }
+
+    .image-tag { position: absolute; top: 24px; right: 25px; padding: 8px 11px; border: 1px solid rgba(255,255,255,.34); border-radius: 999px; color: rgba(255,255,255,.8); font-size: 8px; font-weight: 700; letter-spacing: .14em; text-transform: uppercase; }
+
+    .contact-section { padding: 105px 0 80px; }
+    .contact-card { display: grid; grid-template-columns: 1fr auto; align-items: center; gap: 36px; padding: clamp(30px, 5vw, 60px); border-radius: 26px; background: var(--lime); }
+    .contact-card .eyebrow { --accent: var(--ink); color: #324825; }
+    .contact-card h2 { max-width: 720px; margin-bottom: 15px; }
+    .contact-card p { max-width: 650px; margin-bottom: 0; color: rgba(16,32,51,.72); font-size: 13px; line-height: 1.75; }
+    .contact-card .button { color: #fff; background: var(--ink); white-space: nowrap; box-shadow: none; }
+    .contact-card .button:hover { background: #203a55; }
+    .contact-note { grid-column: 1 / -1; margin-top: -20px; color: rgba(16,32,51,.57); font-size: 10px; }
+    footer { padding: 25px 0 32px; border-top: 1px solid var(--line); }
+    .footer-row { display: flex; align-items: center; justify-content: space-between; gap: 24px; color: #778592; font-size: 10px; }
+    .footer-brand { display: flex; align-items: center; gap: 8px; color: var(--ink); font-weight: 750; letter-spacing: .06em; }
+    .footer-brand svg { width: 24px; height: 24px; }
+    .footer-right { display: flex; align-items: center; gap: 20px; }
+    .footer-right b { color: var(--ink); font-size: 9px; letter-spacing: .1em; }
+
+    :focus-visible { outline: 3px solid #83a0ff; outline-offset: 4px; }
+    @media (max-width: 980px) {
+      .wrap { width: min(var(--max), calc(100% - 44px)); }
+      .nav-links { gap: 17px; }
+      .nav-links a { font-size: 11px; }
+      .nav-cta { padding: 0 16px; font-size: 11px; }
+      .hero-grid { gap: 35px; }
+      .hero-visual { min-height: 440px; }
+      .neo-grid { gap: 45px; }
+      .dash-window { grid-template-columns: 120px 1fr; }
+      .dash-main { padding: 20px 17px; }
+    }
+    @media (max-width: 760px) {
+      html { scroll-padding-top: 74px; }
+      .wrap { width: min(var(--max), calc(100% - 36px)); }
+      .topbar { height: 70px; }
+      .brand-mark { width: 35px; height: 35px; }
+      .brand-name { font-size: 17px; }
+      .menu-toggle { display: inline-flex; }
+      .nav-cta { display: none; }
+      .nav-links { display: none; position: absolute; left: 0; right: 0; top: 69px; padding: 17px 22px 22px; border-bottom: 1px solid var(--line); background: rgba(255,255,255,.98); box-shadow: 0 18px 25px rgba(16,32,51,.08); }
+      .nav-links.open { display: grid; gap: 0; }
+      .nav-links a { padding: 13px 0; border-bottom: 1px solid #edf0f1; font-size: 13px; }
+      .hero { padding: 49px 0 55px; }
+      .hero-grid { grid-template-columns: 1fr; gap: 36px; }
+      .hero-copy { font-size: 15px; }
+      h1 { max-width: 580px; font-size: clamp(47px, 12vw, 69px); }
+      .hero-visual { min-height: 360px; border-radius: 23px; }
+      .service-nav-grid { grid-template-columns: 1fr; }
+      .svc-tab, .svc-tab:first-child, .svc-tab:last-child { padding: 18px 0; border-left: 0; border-top: 1px solid rgba(255,255,255,.09); }
+      .svc-tab:first-child { border-top: 0; }
+      .svc-tab::after, .svc-tab:first-child::after { left: 0; right: 0; }
+      .svc-tab-no { width: 36px; height: 36px; border-radius: 11px; }
+      .svc-tab b { font-size: 15px; }
+      .svc-tab small { font-size: 12px; }
+      .section { padding: 78px 0; }
+      .section-top { display: block; margin-bottom: 31px; }
+      .section-intro { margin-top: 18px; font-size: 13px; }
+      .coverage-stats { margin-top: 24px; gap: 36px; }
+      .coverage-count strong { font-size: 48px; }
+      .coverage-map-frame { border-radius: 16px; }
+      #coverage-map-root { height: 420px; }
+      .map-caption { top: 12px; left: 12px; font-size: 7px; }
+      .city-label { font-size: 10px; }
+      .filter-chip { padding: 7px 11px; font-size: 10px; }
+      .neo-section { padding: 78px 0; }
+      .neo-grid { grid-template-columns: 1fr; gap: 40px; }
+      .neo-copy > p:not(.eyebrow) { font-size: 14px; }
+      .dashboard { transform: none; padding: 8px; border-radius: 17px; }
+      .dash-window { grid-template-columns: 92px 1fr; min-height: 322px; }
+      .dash-side { padding: 18px 9px; }
+      .dash-brand { gap: 5px; font-size: 8px; }
+      .dash-brand svg { width: 19px; height: 19px; }
+      .dash-nav span { padding: 8px 5px; font-size: 8px; }
+      .dash-main { padding: 16px 11px; }
+      .dash-top strong { font-size: 12px; }
+      .dash-period { font-size: 7px; }
+      .dash-kpi { padding: 10px; }
+      .dash-kpi b { font-size: 14px; }
+      .dash-chart { min-height: 125px; padding: 11px 9px; }
+      .process-grid { grid-template-columns: 1fr; }
+      .process-step, .process-step + .process-step { min-height: auto; padding: 23px 0 21px; border-left: 0; border-bottom: 1px solid #dce4e7; }
+      .process-no { margin-bottom: 18px; }
+      .svc-lead { margin-top: 16px; font-size: 18px; }
+      .agg-grid { grid-template-columns: 1fr; gap: 10px; }
+      .agg-item { min-height: 0; gap: 26px; padding: 22px; }
+      .agg-item h3 { font-size: 19px; }
+      .agg-support { grid-column: auto; }
+      .support-big { font-size: 62px; }
+      .platform { margin-top: 48px; }
+      .platform-head { display: block; margin-bottom: 22px; }
+      .platform-head p { margin-top: 14px; font-size: 13px; }
+      .platform-stage { padding: 0; }
+      .shot { border-radius: 12px; }
+      .shot-bar { height: 26px; padding: 0 10px; }
+      .shot-bar i { width: 7px; height: 7px; }
+      .shot-order { position: relative; width: 80%; margin: -36px 0 0 auto; border-radius: 12px; }
+      .evac-panel { min-height: 420px; padding: 26px; border-radius: 19px; background-position: 66% center; }
+      .evac-panel::before { background: linear-gradient(180deg, rgba(9,25,43,.9), rgba(9,25,43,.4) 58%, rgba(9,25,43,.15)); }
+      .evac-points { grid-template-columns: 1fr; gap: 10px; margin: 10px 0 0; }
+      .evac-point { min-height: 0; padding: 22px; border: 1px solid #e7ecee; box-shadow: none; }
+      .evac-point h3 { font-size: 19px; }
+      .evac-msg { grid-template-columns: 1fr; gap: 28px; margin-top: 10px; padding: 26px 22px; border-radius: 18px; }
+      .chat { max-width: none; justify-self: stretch; }
+      .neo-points li { font-size: 15px; }
+      .image-tag { top: 17px; right: 17px; font-size: 7px; }
+      .contact-section { padding: 70px 0 58px; }
+      .contact-card { grid-template-columns: 1fr; gap: 24px; padding: 29px 24px; border-radius: 20px; }
+      .contact-card h2 { font-size: 38px; }
+      .contact-card .button { justify-self: start; }
+      .contact-note { margin-top: -6px; }
+      .footer-row { align-items: start; flex-direction: column; gap: 12px; }
+      .footer-right { width: 100%; justify-content: space-between; }
+    }
+    @media (max-width: 390px) {
+      .wrap { width: calc(100% - 28px); }
+      h1 { font-size: 45px; }
+      .hero-actions { align-items: flex-start; flex-direction: column; gap: 16px; }
+      .hero-visual { min-height: 370px; }
+      .visual-card { right: 14px; bottom: 57px; }
+      .dash-window { grid-template-columns: 78px 1fr; }
+      .dash-kpis { gap: 6px; }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after { scroll-behavior: auto !important; transition-duration: .01ms !important; animation-duration: .01ms !important; }
+    }
+  </style>
+</head>
+<body>
+  <header class="topbar">
+    <div class="wrap nav-row">
+      <a class="brand" href="#top" aria-label="UNI FLEET — на главную">
+        <svg class="brand-mark" viewBox="0 0 48 48" fill="none" aria-hidden="true">
+          <path d="M14 8.5h7.5A10.5 10.5 0 0 1 32 19v3.4" stroke="#3567F6" stroke-width="6.5" stroke-linecap="round"/>
+          <path d="M34 39.5h-7.5A10.5 10.5 0 0 1 16 29v-3.4" stroke="#102033" stroke-width="6.5" stroke-linecap="round"/>
+          <path d="M16.7 23.6c3.2-3 11.1-3.5 15.4-.2" stroke="#B7E64A" stroke-width="4" stroke-linecap="round"/>
+          <circle cx="15.7" cy="24" r="4.2" fill="#B7E64A"/><circle cx="33.3" cy="24" r="4.2" fill="#3567F6"/>
+        </svg>
+        <span class="brand-name">UNI <span>FLEET</span></span>
+      </a>
+      <nav class="nav-links" id="nav-links" aria-label="Основная навигация">
+        <a href="#aggregator">Агрегатор</a>
+        <a href="#evacuation">Эвакуация</a>
+        <a href="#neo-fleet">Интеллект затрат</a>
+        <a href="#coverage">География</a>
+        <a href="#approach">Подход</a>
+      </nav>
+      <a class="nav-cta" href="#contact">Обсудить задачу <svg class="button-arrow" viewBox="0 0 20 20" fill="none" aria-hidden="true"><path d="M4 10h11M10 4l6 6-6 6" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg></a>
+      <button class="menu-toggle" type="button" aria-label="Открыть меню" aria-expanded="false" aria-controls="nav-links"><svg width="18" height="18" viewBox="0 0 20 20" fill="none" aria-hidden="true"><path d="M3 6h14M3 10h14M3 14h14" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg></button>
+    </div>
+  </header>
+
+  <main id="top">
+    <section class="hero">
+      <div class="wrap hero-grid">
+        <div>
+          <div class="eyebrow">Для юридических лиц и корпоративных автопарков</div>
+          <h1>Ремонт и ТО.<br>Эвакуация.<br><span class="blue">ИИ-аналитика.</span></h1>
+          <p class="hero-copy"><strong>UNITRADE</strong> — единый федеральный поставщик сервиса для юридических лиц: все типы автомобилей, единый счёт и поддержка 24/7.</p>
+          <div class="hero-actions">
+            <a class="button" href="#aggregator">Решения для автопарка <svg class="button-arrow" viewBox="0 0 20 20" fill="none" aria-hidden="true"><path d="M4 10h11M10 4l6 6-6 6" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg></a>
+            <a class="text-link" href="#neo-fleet">Открыть NEO FLEET <svg viewBox="0 0 20 20" fill="none" aria-hidden="true"><path d="M3 10h13M10 4l6 6-6 6" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg></a>
+          </div>        </div>
+        <div class="hero-visual" role="img" aria-label="Светящиеся маршруты и узлы цифровой инфраструктуры">
+          <div class="visual-label"><i class="live"></i> UNITRADE NETWORK</div>
+          <div class="visual-coordinate">55°45′ N&nbsp; 37°37′ E</div>
+          <div class="visual-card">
+            <div class="visual-card-head">
+              <div class="neo-lockup">
+                <svg class="neo-mark" viewBox="0 0 48 48" fill="none" aria-hidden="true"><path d="M6 11h10l7 7h11l8 6-8 7H23l-7 7H6" stroke="#102033" stroke-width="3.8" stroke-linejoin="round"/><path d="M6 11h9l3 3" stroke="#3567F6" stroke-width="4" stroke-linecap="round"/><path d="M6 24h13" stroke="#52D7C1" stroke-width="4" stroke-linecap="round"/><path d="M6 37h9l3-3" stroke="#3567F6" stroke-width="4" stroke-linecap="round"/><circle cx="35" cy="24" r="4" fill="#B7E64A"/></svg>
+                <div><div class="neo-title">NEO FLEET</div><span class="neo-sub">by UNITRADE</span></div>
+              </div>
+              <span class="ai-tag">AI DATA</span>
+            </div>
+            <div class="micro-row"><span>Техническое обслуживание</span><span class="micro-line"><i style="width:76%"></i></span></div>
+            <div class="micro-row"><span>Топливо и эксплуатация</span><span class="micro-line"><i style="width:53%"></i></span></div>
+            <div class="micro-row"><span>Сервисные события</span><span class="micro-line"><i style="width:89%"></i></span></div>
+          </div>
+          <div class="visual-caption">Связанные процессы · единый контур</div>
+        </div>
+      </div>
+    </section>
+
+    <nav class="service-nav" id="services" aria-label="Направления">
+      <div class="wrap service-nav-grid">
+        <a class="svc-tab accent-blue" href="#aggregator">
+          <span class="svc-tab-no">01</span>
+          <span><b>Агрегатор сервисов</b><small>Техническое обслуживание и ремонт всех типов автомобилей для юридических лиц</small></span>
+          <svg class="svc-tab-arrow" viewBox="0 0 20 20" fill="none" aria-hidden="true"><path d="M10 3v13M4 10l6 6 6-6" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </a>
+        <a class="svc-tab accent-teal" href="#evacuation">
+          <span class="svc-tab-no">02</span>
+          <span><b>Эвакуация</b><small>Любые типы автомобилей — из любых ситуаций, по всей России и странам СНГ</small></span>
+          <svg class="svc-tab-arrow" viewBox="0 0 20 20" fill="none" aria-hidden="true"><path d="M10 3v13M4 10l6 6 6-6" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </a>
+        <a class="svc-tab accent-lime" href="#neo-fleet">
+          <span class="svc-tab-no">03</span>
+          <span><b>Интеллект затрат</b><small>Решение NEO FLEET для структурирования данных автопарка с помощью ИИ</small></span>
+          <svg class="svc-tab-arrow" viewBox="0 0 20 20" fill="none" aria-hidden="true"><path d="M10 3v13M4 10l6 6 6-6" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </a>
+      </div>
+    </nav>
+
+    <section class="section section-mist accent-blue" id="aggregator">
+      <div class="wrap">
+        <div class="section-top">
+          <div><div class="eyebrow">01 / Агрегатор сервисов</div><h2>Агрегатор<br>сервисов</h2></div>
+          <p class="svc-lead">Единый федеральный поставщик услуг для корпоративных автомобилей.</p>
+        </div>
+        <div class="agg-grid">
+          <article class="agg-item">
+            <div class="agg-top"><span class="agg-no">01</span><span class="agg-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3.2l7 3v5c0 4.6-3 8.1-7 9.9-4-1.8-7-5.3-7-9.9v-5z"/><path d="M9 12.2l2.1 2.1L15.2 10"/></svg></span></div>
+            <h3>Гарантийное и постгарантийное обслуживание</h3>
+          </article>
+          <article class="agg-item">
+            <div class="agg-top"><span class="agg-no">02</span><span class="agg-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5.2 11l1.5-4a2 2 0 0 1 1.9-1.4h6.8a2 2 0 0 1 1.9 1.4l1.5 4"/><rect x="3.5" y="11" width="17" height="6" rx="1.8"/><path d="M6.2 17v2M17.8 17v2"/><circle cx="7.6" cy="14" r=".9" fill="currentColor"/><circle cx="16.4" cy="14" r=".9" fill="currentColor"/></svg></span></div>
+            <h3>Все бренды, представленные сегодня на российском рынке</h3>
+          </article>
+          <article class="agg-item">
+            <div class="agg-top"><span class="agg-no">03</span><span class="agg-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 3.5h7l4 4v13H7z"/><path d="M14 3.5v4h4"/><path d="M9.6 12h5.8M9.6 15.6h5.8"/></svg></span></div>
+            <h3>Единый счёт</h3>
+          </article>
+          <article class="agg-item">
+            <div class="agg-top"><span class="agg-no">04</span><span class="agg-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 18L18 6"/><circle cx="7.6" cy="7.6" r="2.1"/><circle cx="16.4" cy="16.4" r="2.1"/></svg></span></div>
+            <h3>Все счета с НДС</h3>
+          </article>
+          <article class="agg-item agg-support">
+            <div class="agg-top"><span class="agg-no">05</span><span class="agg-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4.5 14v-2a7.5 7.5 0 0 1 15 0v2"/><rect x="3.5" y="13.5" width="4" height="6" rx="1.5"/><rect x="16.5" y="13.5" width="4" height="6" rx="1.5"/><path d="M18.5 19.5c0 1.4-1.8 2.2-4.5 2.2"/></svg></span></div>
+            <div class="support-row"><h3>Служба поддержки</h3><div class="support-big" aria-label="круглосуточно, без выходных">24/7</div></div>
+          </article>
+        </div>
+
+        <div class="platform">
+          <div class="platform-head">
+            <div>
+              <div class="platform-kicker">Платформа UNI FLEET</div>
+              <h3>Все заявки автопарка —<br>на одной доске</h3>
+            </div>
+            <p>Каждая заявка проходит путь от приёма до проверки и согласования. Заказ-наряд формируется в системе: работы, запчасти и итог с НДС.</p>
+          </div>
+          <div class="platform-stage">
+            <figure class="shot shot-board">
+              <div class="shot-bar" aria-hidden="true"><i></i><i></i><i></i><span>Доска заявок</span></div>
+              <a href="assets/ui/board.webp" target="_blank" rel="noopener"><img src="assets/ui/board.webp" width="2600" height="1232" loading="lazy" alt="Доска заявок: карточки автомобилей по этапам — приём, работа в СТО, проверка и согласование"></a>
+            </figure>
+            <figure class="shot shot-order">
+              <a href="assets/ui/work-order.webp" target="_blank" rel="noopener"><img src="assets/ui/work-order.webp" width="1640" height="1790" loading="lazy" alt="Заказ-наряд: работы, запчасти и итоговая сумма с НДС"></a>
+            </figure>
+          </div>
+          <p class="platform-note">Интерфейс показан на демонстрационных данных.</p>
+        </div>
+      </div>
+    </section>
+
+    <section class="section evac-block accent-teal" id="evacuation">
+      <div class="wrap">
+        <div class="evac-panel">
+          <span class="image-tag">UNITRADE · Fleet support</span>
+          <div class="evac-copy">
+            <div class="eyebrow">02 / Эвакуация</div>
+            <h2>Эвакуация</h2>
+            <p>Поддержка, которая держит путь: помощь в дороге для легковых и грузовых автомобилей корпоративного парка.</p>
+          </div>
+        </div>
+        <div class="evac-points">
+          <article class="evac-point">
+            <div class="evac-top"><span class="agg-no">01</span><span class="evac-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3.5 15.5h11l2.4-5.8h3.6l1.4 5.8v3h-2M3.5 18.5h2M10 18.5h5.5"/><path d="M2.5 7.5h9v8h-9z"/><circle cx="7" cy="18.5" r="1.8"/><circle cx="17.5" cy="18.5" r="1.8"/></svg></span></div>
+            <h3>Грузовая и легковая эвакуация</h3>
+          </article>
+          <article class="evac-point">
+            <div class="evac-top"><span class="agg-no">02</span><span class="evac-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 20.5V8.5l9.5-4.5 5.5 2.4"/><path d="M19 6.4v5.1"/><path d="M19 11.5a2.1 2.1 0 1 1-2.1 2.1"/><path d="M2.5 20.5h9"/><path d="M4 12.5h5"/></svg></span></div>
+            <h3>Сложная эвакуация</h3>
+          </article>
+          <a class="evac-point" href="#coverage">
+            <div class="evac-top"><span class="agg-no">03</span><span class="evac-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 21s-6.2-5.5-6.2-10.6a6.2 6.2 0 0 1 12.4 0C18.2 15.5 12 21 12 21z"/><circle cx="12" cy="10.4" r="2.2"/></svg></span></div>
+            <h3>Эвакуация по всей России и странам СНГ <svg class="evac-arrow" viewBox="0 0 20 20" fill="none" aria-hidden="true"><path d="M3 10h13M10 4l6 6-6 6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></h3>
+          </a>
+        </div>
+
+        <div class="evac-msg">
+          <div>
+            <div class="msg-kicker">Интеграция со всеми мессенджерами</div>
+            <h3>Водитель сам формирует заявку на эвакуацию</h3>
+            <p>Заявка создаётся прямо из чата в Telegram, MAX или VK и попадает в систему — водителю не нужно звонить и ждать ответа на линии.</p>
+            <div class="msg-chips">
+              <span class="msg-chip"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round" aria-hidden="true"><path d="M3.5 9.5a6.5 6 0 1 1 3 5.1L3 16l1-3.2a5.8 5.8 0 0 1-.5-3.3z"/></svg>Telegram</span>
+              <span class="msg-chip"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round" aria-hidden="true"><path d="M3.5 9.5a6.5 6 0 1 1 3 5.1L3 16l1-3.2a5.8 5.8 0 0 1-.5-3.3z"/></svg>MAX</span>
+              <span class="msg-chip"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round" aria-hidden="true"><path d="M3.5 9.5a6.5 6 0 1 1 3 5.1L3 16l1-3.2a5.8 5.8 0 0 1-.5-3.3z"/></svg>VK</span>
+            </div>
+          </div>
+          <div class="chat" role="img" aria-label="Пример переписки: водитель оформляет заявку на эвакуацию в чате с ботом">
+            <div class="chat-head">
+              <span class="chat-ava"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3.5 15.5h11l2.4-5.8h3.6l1.4 5.8v3h-2M3.5 18.5h2M10 18.5h5.5"/><path d="M2.5 7.5h9v8h-9z"/><circle cx="7" cy="18.5" r="1.8"/><circle cx="17.5" cy="18.5" r="1.8"/></svg></span>
+              <span><b>UNI FLEET · Эвакуация</b><small>бот</small></span>
+            </div>
+            <div class="chat-body">
+              <span class="bubble me">Нужна эвакуация</span>
+              <span class="bubble bot">Укажите госномер и отправьте геолокацию</span>
+              <span class="bubble me">В417ХР750</span>
+              <span class="bubble me"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M10 17.5s-5-4.4-5-8.5a5 5 0 0 1 10 0c0 4.1-5 8.5-5 8.5z"/><circle cx="10" cy="9" r="1.8"/></svg>Геолокация</span>
+              <span class="bubble bot done"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4.5 10.5l3.5 3.5 7.5-8"/></svg>Заявка № 3127 создана</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="neo-section accent-lime" id="neo-fleet">
+      <div class="wrap neo-grid">
+        <div class="neo-copy">
+          <div class="neo-lockup-large">
+            <svg class="neo-mark" viewBox="0 0 48 48" fill="none" aria-hidden="true"><path d="M6 11h10l7 7h11l8 6-8 7H23l-7 7H6" stroke="#fff" stroke-width="3.8" stroke-linejoin="round"/><path d="M6 11h9l3 3" stroke="#3567F6" stroke-width="4" stroke-linecap="round"/><path d="M6 24h13" stroke="#52D7C1" stroke-width="4" stroke-linecap="round"/><path d="M6 37h9l3-3" stroke="#3567F6" stroke-width="4" stroke-linecap="round"/><circle cx="35" cy="24" r="4" fill="#B7E64A"/></svg>
+            <div><strong>NEO FLEET</strong><small>Data clarity for fleet operations · by UNITRADE</small></div>
+          </div>
+          <div class="eyebrow">03 / Интеллект затрат</div>
+          <h2>Интеллект затрат</h2>
+          <p>Внедрение ИИ в парк позволяет структурировать затраты и видеть, где они выходят за норму.</p>
+          <ul class="neo-points">
+            <li><span>01</span>Структурирование затрат с помощью ИИ</li>
+            <li><span>02</span>Выявление аномалий в затратах на конкретный автомобиль</li>
+            <li><span>03</span>Дашборды для каждого клиента</li>
+          </ul>
+          <a class="text-link" href="#approach">Как устроен подход <svg viewBox="0 0 20 20" fill="none" aria-hidden="true"><path d="M3 10h13M10 4l6 6-6 6" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg></a>
+        </div>
+        <div>
+          <div class="dashboard" role="img" aria-label="Иллюстративный макет интерфейса NEO FLEET">
+            <div class="dash-window">
+              <aside class="dash-side">
+                <div class="dash-brand"><svg viewBox="0 0 48 48" fill="none" aria-hidden="true"><path d="M6 11h10l7 7h11l8 6-8 7H23l-7 7H6" stroke="#fff" stroke-width="4" stroke-linejoin="round"/><path d="M6 11h9l3 3M6 24h13M6 37h9l3-3" stroke="#6D8CFF" stroke-width="4" stroke-linecap="round"/><circle cx="35" cy="24" r="4" fill="#B7E64A"/></svg> NEO FLEET</div>
+                <div class="dash-nav"><span class="active">Обзор</span><span>Автомобили</span><span>Расходы</span><span>Аномалии</span><span>Дашборды</span></div>
+              </aside>
+              <div class="dash-main">
+                <div class="dash-top"><strong>Обзор автопарка</strong><span class="dash-period">Период · Демо</span></div>
+                <div class="dash-kpis">
+                  <div class="dash-kpi"><small>Структура расходов</small><b>01 <em>контур</em></b></div>
+                  <div class="dash-kpi"><small>Аномалии</small><b>AI <em>контроль</em></b></div>
+                </div>
+                <div class="dash-chart">
+                  <div class="dash-chart-title">Динамика затрат <span>условные данные</span></div>
+                  <div class="bar-chart"><i style="height:32%"></i><i style="height:46%"></i><i style="height:38%"></i><i style="height:60%"></i><i style="height:49%"></i><i style="height:73%"></i><i style="height:57%"></i><i class="anomaly" style="height:88%"></i><i style="height:68%"></i><i style="height:77%"></i><i style="height:55%"></i><i style="height:94%"></i></div>
+                  <div class="chart-labels"><span>Янв</span><span>Мар</span><span>Май</span><span>Июл</span><span>Сен</span><span>Дек</span></div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="dash-note">Визуальный макет · данные и показатели условные</div>
+        </div>
+      </div>
+    </section>
+
+    <section class="section coverage-section" id="coverage">
+      <div class="wrap">
+        <div class="section-top">
+          <div><div class="eyebrow">04 / География</div><h2>Точки поддержки<br>по всей России</h2></div>
+          <div class="coverage-stats">
+            <div class="coverage-count"><strong id="city-count">—</strong><span>городов покрытия</span></div>
+            <div class="coverage-count"><strong>1&nbsp;600</strong><span>сервисов</span></div>
+          </div>
+        </div>
+        <div class="coverage-map-frame" id="coverage-map-frame">
+          <div id="coverage-map-root" role="application" aria-label="Интерактивная карта городов присутствия"></div>
+          <div class="map-caption">ИНТЕРАКТИВНАЯ КАРТА · НАВЕДИТЕ НА ТОЧКУ</div>
+          <p class="map-fallback">Карта не загрузилась. Обновите страницу.</p>
+        </div>
+        <div class="coverage-filters" id="coverage-filters" role="group" aria-label="Фильтр городов по федеральным округам"></div>
+      </div>
+    </section>
+
+    <section class="section process" id="approach">
+      <div class="wrap">
+        <div class="section-top">
+          <div><div class="eyebrow">05 / Принцип работы</div><h2>От сервисного события<br>к ясной картине.</h2></div>
+          <p class="section-intro">Система брендов выстроена вокруг одного рабочего процесса: координация, структурирование, понимание.</p>
+        </div>
+        <div class="process-grid">
+          <article class="process-step"><span class="process-no">01</span><h3>Координируем сервис</h3><p>UNITRADE помогает организовать сервисную поддержку и эвакуацию для корпоративных автопарков.</p></article>
+          <article class="process-step"><span class="process-no">02</span><h3>Собираем контекст</h3><p>Сервисные процессы и данные об эксплуатации формируют единый контекст для работы с автопарком.</p></article>
+          <article class="process-step"><span class="process-no">03</span><h3>Структурируем затраты</h3><p>NEO FLEET применяет ИИ для упорядочивания затрат и подготовки данных к анализу.</p></article>
+        </div>
+      </div>
+    </section>
+
+    <section class="contact-section" id="contact">
+      <div class="wrap">
+        <div class="contact-card">
+          <div><div class="eyebrow">UNITRADE × NEO FLEET</div><h2>Обсудим задачи вашего автопарка?</h2><p>Сервисная агрегация, эвакуация или аналитика затрат — определим, какой контур будет полезен вашей команде.</p></div>
+          <a class="button" href="#services">Посмотреть решения <svg class="button-arrow" viewBox="0 0 20 20" fill="none" aria-hidden="true"><path d="M4 10h11M10 4l6 6-6 6" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg></a>
+          
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer>
+    <div class="wrap footer-row">
+      <a class="footer-brand" href="#top"><svg viewBox="0 0 48 48" fill="none" aria-hidden="true"><path d="M14 8.5h7.5A10.5 10.5 0 0 1 32 19v3.4" stroke="#3567F6" stroke-width="6.5" stroke-linecap="round"/><path d="M34 39.5h-7.5A10.5 10.5 0 0 1 16 29v-3.4" stroke="#102033" stroke-width="6.5" stroke-linecap="round"/><path d="M16.7 23.6c3.2-3 11.1-3.5 15.4-.2" stroke="#B7E64A" stroke-width="4" stroke-linecap="round"/><circle cx="15.7" cy="24" r="4.2" fill="#B7E64A"/><circle cx="33.3" cy="24" r="4.2" fill="#3567F6"/></svg> UNI FLEET</a>
+      <div>Сервис и данные для корпоративных автопарков</div>
+      <div class="footer-right"><span>© UNITRADE, 2026</span><b>NEO FLEET · BY UNITRADE</b></div>
+    </div>
+  </footer>
+
+  <script src="assets/leaflet/leaflet.js"></script>
+  <script src="assets/data/geo.js"></script>
+  <script>
+    const toggle = document.querySelector('.menu-toggle');
+    const nav = document.querySelector('#nav-links');
+    toggle.addEventListener('click', () => {
+      const isOpen = toggle.getAttribute('aria-expanded') === 'true';
+      toggle.setAttribute('aria-expanded', String(!isOpen));
+      toggle.setAttribute('aria-label', isOpen ? 'Открыть меню' : 'Закрыть меню');
+      nav.classList.toggle('open', !isOpen);
+    });
+    nav.querySelectorAll('a').forEach(link => link.addEventListener('click', () => {
+      nav.classList.remove('open');
+      toggle.setAttribute('aria-expanded', 'false');
+      toggle.setAttribute('aria-label', 'Открыть меню');
+    }));
+
+    // Подсветка раздела в меню при прокрутке
+    const navItems = [...nav.querySelectorAll('a')];
+    const spyTargets = [document.querySelector('.hero'), ...navItems.map(a => document.querySelector(a.getAttribute('href')))].filter(Boolean);
+    if ('IntersectionObserver' in window) {
+      const spy = new IntersectionObserver(entries => {
+        entries.forEach(entry => {
+          if (!entry.isIntersecting) return;
+          const id = entry.target.id ? '#' + entry.target.id : '';
+          navItems.forEach(a => {
+            const on = a.getAttribute('href') === id;
+            a.classList.toggle('is-active', on);
+            if (on) a.setAttribute('aria-current', 'true'); else a.removeAttribute('aria-current');
+          });
+        });
+      }, { rootMargin: '-45% 0px -50% 0px' });
+      spyTargets.forEach(t => spy.observe(t));
+    }
+
+    const mapRoot = document.querySelector('#coverage-map-root');
+    const mapFrame = document.querySelector('#coverage-map-frame');
+
+    if (mapRoot && mapFrame) {
+      if (!window.L || !window.UNI_GEO) {
+        mapFrame.classList.add('is-fallback');
+      } else {
+        const geo = window.UNI_GEO;
+        const RADIUS = { 1: 3.6, 2: 5.4, 3: 7.6 };
+        const DISTRICTS = ['ЦФО', 'СЗФО', 'ЮФО', 'СКФО', 'ПФО', 'УФО', 'СФО', 'ДФО'];
+        const ANCHORS = new Set(['Москва', 'Санкт-Петербург', 'Екатеринбург', 'Новосибирск', 'Красноярск', 'Хабаровск', 'Владивосток']);
+
+        const map = L.map(mapRoot, {
+          zoomControl: false,
+          scrollWheelZoom: true,
+          wheelPxPerZoomLevel: 110,
+          wheelDebounceTime: 25,
+          attributionControl: false,
+          minZoom: 2,
+          maxZoom: 9,
+          zoomSnap: 0.25,
+          zoomDelta: 0.5,
+          maxBounds: [[18, -15], [86, 215]],
+          maxBoundsViscosity: 0.85
+        });
+        L.control.zoom({ position: 'topright', zoomInTitle: 'Приблизить', zoomOutTitle: 'Отдалить' }).addTo(map);
+        const borderStyle = { lineJoin: 'round', lineCap: 'round', fillOpacity: 1, smoothFactor: 0.6 };
+        L.geoJSON(geo.neighbors, { interactive: false, style: { ...borderStyle, color: '#22384e', weight: 1, fillColor: '#152a3e' } }).addTo(map);
+        L.geoJSON(geo.russia, { interactive: false, style: { ...borderStyle, color: '#4d7fae', weight: 1.4, fillColor: '#1d3a56' } }).addTo(map);
+
+        const dotLayer = L.layerGroup().addTo(map);
+        const labelLayer = L.layerGroup().addTo(map);
+
+        const points = geo.cities.map(([name, lat, lon, tier, district, region]) => {
+          const dot = L.circleMarker([lat, lon], {
+            radius: RADIUS[tier],
+            className: `city-dot t${tier}`,
+            weight: 1.3
+          });
+          dot.bindTooltip(`${name}<small>${region}</small>`, {
+            direction: 'top',
+            offset: [0, -RADIUS[tier] - 2],
+            className: 'city-tooltip',
+            opacity: 1
+          });
+          const label = L.tooltip({
+            permanent: true,
+            direction: 'right',
+            offset: [RADIUS[tier] + 4, 0],
+            className: 'city-label',
+            interactive: false
+          }).setLatLng([lat, lon]).setContent(name);
+          return { name, tier, district, region, dot, label };
+        });
+
+        const narrow = window.matchMedia('(max-width: 760px)');
+        const labelShown = (zoom, p) => {
+          if (narrow.matches) return p.tier === 3 ? zoom >= 5 : zoom >= 7;
+          if (ANCHORS.has(p.name)) return true;
+          if (p.tier === 3) return zoom >= 4;
+          if (p.tier === 2) return zoom >= 5.5;
+          return zoom >= 7;
+        };
+
+        const countEl = document.querySelector('#city-count');
+        let active = 'Все';
+
+        function render(fit) {
+          const zoom = map.getZoom();
+          const shown = points.filter(p => active === 'Все' || p.district === active);
+
+          dotLayer.clearLayers();
+          labelLayer.clearLayers();
+          shown.forEach(p => {
+            dotLayer.addLayer(p.dot);
+            if (labelShown(zoom, p)) labelLayer.addLayer(p.label);
+          });
+
+          countEl.textContent = shown.length;
+
+          if (fit && shown.length) {
+            map.fitBounds(L.featureGroup(shown.map(p => p.dot)).getBounds(), { padding: [34, 34], maxZoom: 6 });
+          }
+        }
+
+        const filtersEl = document.querySelector('#coverage-filters');
+        ['Все', ...DISTRICTS].forEach(key => {
+          const total = key === 'Все' ? points.length : points.filter(p => p.district === key).length;
+          if (!total) return;
+          const chip = document.createElement('button');
+          chip.type = 'button';
+          chip.className = 'filter-chip';
+          chip.setAttribute('aria-pressed', String(key === 'Все'));
+          chip.innerHTML = `${key === 'Все' ? 'Вся Россия' : key} <b>${total}</b>`;
+          chip.addEventListener('click', () => {
+            active = key;
+            filtersEl.querySelectorAll('.filter-chip').forEach(c => c.setAttribute('aria-pressed', String(c === chip)));
+            render(true);
+          });
+          filtersEl.appendChild(chip);
+        });
+
+        map.on('zoomend', () => render(false));
+        narrow.addEventListener('change', () => render(false));
+
+        map.setView([62, 92], 3);
+        render(true);
+        requestAnimationFrame(() => map.invalidateSize());
+      }
+    }
+
+  </script>
+</body>
+</html>
